@@ -37,12 +37,12 @@ tweetinfo = []
 def get_tweets():
     auth = tweepy.OAuth2BearerHandler(bearer)
     api = tweepy.API(auth)  
-    search_term = urllib.parse.quote(input('Search term: '))
+    search_term = urllib.parse.quote(input('Search term: ') + '&lang:en')
     public_tweets = api.search_tweets(q=search_term, count=20)
 
     for tweet in public_tweets:
         profile_picture = get_profile_image(tweet)
-        formatted_tweet = textwrap.fill(tweet.text, width=20)
+        formatted_tweet = textwrap.fill(tweet.text, width=22)
         tweetinfo.append([formatted_tweet, tweet.user.screen_name , profile_picture])
 
 # Grab twitter profile image and convert to bmp
@@ -65,9 +65,9 @@ def display_tweet(ctweet):
     img = Image.open(os.path.join(picdir, ctweet[2]))
     Himage.paste(img, (10, 10, 10 + img.size[0], 10 + img.size[1]))
     draw = ImageDraw.Draw( Himage)
-    draw.multiline_text((75, 10), ctweet[0], font = font14, fill = epd.GRAY4)
+    draw.multiline_text((70, 10), ctweet[0], font = font14, fill = epd.GRAY4)
     textbox_size = draw.textbbox((75,10),ctweet[0], font = font14)
-    draw.text((75, textbox_size[3]+10), f'{ctweet[1]}', font = font14, fill = epd.GRAY4)
+    draw.text((70, textbox_size[3]+10), f'@{ctweet[1]}', font = font14, fill = epd.GRAY4)
     epd.display_4Gray(epd.getbuffer_4Gray(Himage))
 
 # Get waveshare screen functional
@@ -121,7 +121,10 @@ while True:
     time.sleep(0.05)
     # Returns the value read at the given pin. It will be HIGH or LOW (0 or 1).
     if GPIO.input(NEW_TWEET) == 0:
-        display_tweet(tweetinfo[current_tweet])
+        try:
+            display_tweet(tweetinfo[current_tweet])
+        except:
+            print('No tweets found')
         # Increment tweet counter if less than total count of tweets
         if current_tweet < len(tweetinfo)-1:
             current_tweet += 1
