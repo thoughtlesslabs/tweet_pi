@@ -23,3 +23,8 @@ You will also need Twitter API access to get a bearer token.
 7. Press Key 2 on the HAT to clear the screen and exit.
 
 Enjoy!
+
+### Example
+https://user-images.githubusercontent.com/5252508/176463872-f2edc484-3e24-4c57-ad45-67d60f5e5b8a.mp4
+
+
