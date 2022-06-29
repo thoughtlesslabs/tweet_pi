@@ -24,7 +24,7 @@ import time
 
 epd = epd2in7.EPD()
 font24 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 24)
-font14 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 14)
+font12 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 12)
 font35 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 35)
 NEW_TWEET = 5
 STOP=6
@@ -37,12 +37,12 @@ tweetinfo = []
 def get_tweets():
     auth = tweepy.OAuth2BearerHandler(bearer)
     api = tweepy.API(auth)  
-    search_term = urllib.parse.quote(input('Search term: ') + '&lang:en')
-    public_tweets = api.search_tweets(q=search_term, count=20)
+    search_term = urllib.parse.quote(input('Search term: '))
+    public_tweets = api.search_tweets(q=search_term, lang='en', count=30)
 
     for tweet in public_tweets:
         profile_picture = get_profile_image(tweet)
-        formatted_tweet = textwrap.fill(tweet.text, width=22)
+        formatted_tweet = textwrap.fill(tweet.text, width=26)
         tweetinfo.append([formatted_tweet, tweet.user.screen_name , profile_picture])
 
 # Grab twitter profile image and convert to bmp
@@ -50,24 +50,39 @@ def get_profile_image(info):
     image_urls = info.user.profile_image_url
     file_name = info.user.screen_name
     download_image = requests.get(image_urls)
-    downloaded = open(f'imgs/{file_name}.jpg', 'wb+')
+
+    if download_image.status_code == 200:
+        pass
+    else:
+        download_image = requests.get('https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png')
+
+    if '.png' in download_image.url:
+        downloaded = open(os.path.join(picdir, f'{file_name}.png'), 'wb+')
+    else:
+        downloaded = open(os.path.join(picdir, f'{file_name}.jpg'), 'wb+')
     downloaded.write(download_image.content)
     downloaded.close()
-    bmp = Image.open(f'imgs/{file_name}.jpg')
-    bmp.convert('RGB')
-    bmp.save(f'imgs/{file_name}.bmp')
+    if '.png' in download_image.url:
+        bmp = Image.open(os.path.join(picdir, f'{file_name}.png')).convert('RGB')
+    else:
+        bmp = Image.open(os.path.join(picdir, f'{file_name}.jpg')).convert('RGB')
+    bmp.save(os.path.join(picdir, f'{file_name}.bmp'))
     bmp.close()
     return f'{file_name}.bmp'
+        
 
 # Display current_tweet based on counter
 def display_tweet(ctweet):
     Himage = Image.new('L', (epd.height, epd.width), 255)  # 255: clear the frame
-    img = Image.open(os.path.join(picdir, ctweet[2]))
+    if 'default_profile_normal.bmp' in ctweet[2]:
+        img = Image.open(os.path.join(picdir, f'/default/{ctweet[2]}'))
+    else:
+        img = Image.open(os.path.join(picdir, ctweet[2]))
     Himage.paste(img, (10, 10, 10 + img.size[0], 10 + img.size[1]))
     draw = ImageDraw.Draw( Himage)
-    draw.multiline_text((70, 10), ctweet[0], font = font14, fill = epd.GRAY4)
-    textbox_size = draw.textbbox((75,10),ctweet[0], font = font14)
-    draw.text((70, textbox_size[3]+10), f'@{ctweet[1]}', font = font14, fill = epd.GRAY4)
+    draw.multiline_text((70, 10), ctweet[0], font = font12, fill = epd.GRAY4)
+    textbox_size = draw.textbbox((75,10),ctweet[0], font = font12)
+    draw.text((70, textbox_size[3]+10), f'@{ctweet[1]}', font = font12, fill = epd.GRAY4)
     epd.display_4Gray(epd.getbuffer_4Gray(Himage))
 
 # Get waveshare screen functional
@@ -90,16 +105,9 @@ def stop_program():
     epd2in7.epdconfig.module_exit()
 
     # Delete all the image files for clean slate on next startup
-    folder = 'imgs'
-    for filename in os.listdir(folder):
-        file_path = os.path.join(folder, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
+    for file in os.listdir(picdir):
+        if file.endswith(".bmp") or file.endswith(".jpg") or file.endswith(".png"):
+            os.remove(os.path.join(picdir, file))
     GPIO.cleanup()
     exit()
 
@@ -122,6 +130,7 @@ while True:
     # Returns the value read at the given pin. It will be HIGH or LOW (0 or 1).
     if GPIO.input(NEW_TWEET) == 0:
         try:
+            print(tweetinfo[current_tweet])
             display_tweet(tweetinfo[current_tweet])
         except:
             print('No tweets found')
