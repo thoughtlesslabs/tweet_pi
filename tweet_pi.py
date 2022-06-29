@@ -33,27 +33,28 @@ STOP=6
 load_dotenv()
 
 bearer = os.getenv('BEARER')
-auth = tweepy.OAuth2BearerHandler(bearer)
-api = tweepy.API(auth)
+
 tweetinfo = []
 def get_tweets():
-
+    auth = tweepy.OAuth2BearerHandler(bearer)
+    api = tweepy.API(auth)  
+    print(api)
     search_term = urllib.parse.quote(input('Search term: '))
     public_tweets = api.search_tweets(q=search_term, count=20)
 
     for tweet in public_tweets:
         profile_picture = get_profile_image(tweet)
-        formatted_tweet = textwrap.fill(tweet.text, width=30)
+        formatted_tweet = textwrap.fill(tweet.text, width=20)
         tweetinfo.append([formatted_tweet, tweet.user.screen_name , profile_picture])
 
 def get_profile_image(info):
     image_urls = info.user.profile_image_url
     file_name = info.user.screen_name
     download_image = requests.get(image_urls)
-    downloaded = open(f'imgs/{file_name}.jpeg', 'wb')
+    downloaded = open(f'imgs/{file_name}.jpg', 'wb+')
     downloaded.write(download_image.content)
     downloaded.close()
-    bmp = Image.open(f'imgs/{file_name}.jpeg')
+    bmp = Image.open(f'imgs/{file_name}.jpg')
     bmp.convert('RGB')
     bmp.save(f'imgs/{file_name}.bmp')
     bmp.close()
@@ -65,11 +66,11 @@ def display_tweet(ctweet):
     print(len(tweetinfo))
     Himage = Image.new('L', (epd.height, epd.width), 255)  # 255: clear the frame
     img = Image.open(os.path.join(picdir, ctweet[2]))
-    Himage.paste(img, (10, 60, 10 + img.size[0], 60 + img.size[1]))
+    Himage.paste(img, (10, 10, 10 + img.size[0], 10 + img.size[1]))
     draw = ImageDraw.Draw( Himage)
-    draw.multiline_text((75, 60), ctweet[0], font = font14, fill = epd.GRAY3)
-    textbox_size = draw.textbbox((75,60),ctweet[0], font = font14)
-    draw.text((75, textbox_size[3]), f'{ctweet[1]}', font = font14, fill = epd.GRAY3)
+    draw.multiline_text((75, 10), ctweet[0], font = font14, fill = epd.GRAY4)
+    textbox_size = draw.textbbox((75,10),ctweet[0], font = font14)
+    draw.text((75, textbox_size[3]+10), f'{ctweet[1]}', font = font14, fill = epd.GRAY4)
     epd.display_4Gray(epd.getbuffer_4Gray(Himage))
 
 def init_screen():
@@ -124,7 +125,6 @@ while True:
     if GPIO.input(NEW_TWEET) == 0:
         display_tweet(tweetinfo[current_tweet])
         if current_tweet < len(tweetinfo)-1:
-            print(len(tweetinfo))
             current_tweet += 1
         else:
             current_tweet = 0
