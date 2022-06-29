@@ -10,7 +10,6 @@ libdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'utils')
 if os.path.exists(libdir):
     sys.path.append(libdir)
 
-import logging
 from waveshare_epd import epd2in7
 from dotenv import load_dotenv
 import urllib.parse
@@ -30,15 +29,14 @@ font35 = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 3
 NEW_TWEET = 5
 STOP=6
 
+# Load Twitter API Environment Variables
 load_dotenv()
-
 bearer = os.getenv('BEARER')
 
 tweetinfo = []
 def get_tweets():
     auth = tweepy.OAuth2BearerHandler(bearer)
     api = tweepy.API(auth)  
-    print(api)
     search_term = urllib.parse.quote(input('Search term: '))
     public_tweets = api.search_tweets(q=search_term, count=20)
 
@@ -47,6 +45,7 @@ def get_tweets():
         formatted_tweet = textwrap.fill(tweet.text, width=20)
         tweetinfo.append([formatted_tweet, tweet.user.screen_name , profile_picture])
 
+# Grab twitter profile image and convert to bmp
 def get_profile_image(info):
     image_urls = info.user.profile_image_url
     file_name = info.user.screen_name
@@ -60,10 +59,8 @@ def get_profile_image(info):
     bmp.close()
     return f'{file_name}.bmp'
 
-
+# Display current_tweet based on counter
 def display_tweet(ctweet):
-    print(ctweet)
-    print(len(tweetinfo))
     Himage = Image.new('L', (epd.height, epd.width), 255)  # 255: clear the frame
     img = Image.open(os.path.join(picdir, ctweet[2]))
     Himage.paste(img, (10, 10, 10 + img.size[0], 10 + img.size[1]))
@@ -73,31 +70,26 @@ def display_tweet(ctweet):
     draw.text((75, textbox_size[3]+10), f'{ctweet[1]}', font = font14, fill = epd.GRAY4)
     epd.display_4Gray(epd.getbuffer_4Gray(Himage))
 
+# Get waveshare screen functional
 def init_screen():
     try:
-
-        logging.info("epd2in7 Demo")   
-        
-        '''2Gray(Black and white) display'''
-        logging.info("init and Clear")
         epd.init()
         epd.Clear(0xFF)
-
-        '''4Gray display'''
-        logging.info("4Gray display--------------------------------")
         epd.Init_4Gray()
             
     except IOError as e:
-        logging.info(e)
+        print(e)
         
     except KeyboardInterrupt:    
-        logging.info("ctrl + c:")
         epd2in7.epdconfig.module_exit()
         exit()
 
+# Cleanly end program on button press
 def stop_program():
     epd.Clear(0xFF)
     epd2in7.epdconfig.module_exit()
+
+    # Delete all the image files for clean slate on next startup
     folder = 'imgs'
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
@@ -116,19 +108,27 @@ GPIO.setmode(GPIO.BCM)
 # Sets the pin as input and sets Pull-up mode for the pin.
 GPIO.setup(NEW_TWEET,GPIO.IN,GPIO.PUD_UP)
 GPIO.setup(STOP,GPIO.IN,GPIO.PUD_UP)
+
+# Start tweet retrieval
 get_tweets()
+
+# Initiate waveshare screen
 init_screen()
+
+# Set tweet cycle counter to 0
 current_tweet = 0
 while True:
     time.sleep(0.05)
     # Returns the value read at the given pin. It will be HIGH or LOW (0 or 1).
     if GPIO.input(NEW_TWEET) == 0:
         display_tweet(tweetinfo[current_tweet])
+        # Increment tweet counter if less than total count of tweets
         if current_tweet < len(tweetinfo)-1:
             current_tweet += 1
         else:
             current_tweet = 0
         while GPIO.input(NEW_TWEET) == 0:
             time.sleep(0.01)
+    # Exit Program on Button Click
     if GPIO.input(STOP) == 0:
         stop_program()
